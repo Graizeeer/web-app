@@ -1,17 +1,15 @@
 const express = require('express');
 const session = require('express-session');
 const flash = require('connect-flash');
-const sqlite3 = require('sqlite3').verbose();
+const Database = require('better-sqlite3');  // Use better-sqlite3
 const app = express();
 const itemRoutes = require('./routes/itemRoutes');
 
-const db = new sqlite3.Database('./database.db', (err) => {
-    if (err) {
-        console.error("Database connection error: ", err);
-    } else {
-        console.log("Database connected!");
-    }
-});
+// Create or open the database using better-sqlite3
+const db = new Database('./database.db', { verbose: console.log });  // Synchronous API
+
+// Check if database is connected (no need for a callback)
+console.log("Database connected!");
 
 app.use(express.urlencoded({ extended: true }));
 
@@ -38,20 +36,16 @@ app.post('/edit', (req, res) => {
         return res.redirect('/');
     }
 
-    db.run(
-        `UPDATE items SET name = ?, description = ? WHERE id = ?`,
-        [name, description, id],
-        function (err) {
-            if (err) {
-                console.error(err);
-                res.status(500).send("Error updating item");
-                return;
-            }
-
-            req.flash('success', 'Item updated successfully!');
-            res.redirect('/');
-        }
-    );
+    // Use the synchronous `run` method from better-sqlite3
+    const stmt = db.prepare('UPDATE items SET name = ?, description = ? WHERE id = ?');
+    try {
+        stmt.run(name, description, id);  // Execute the update query
+        req.flash('success', 'Item updated successfully!');
+        res.redirect('/');
+    } catch (err) {
+        console.error(err);
+        res.status(500).send("Error updating item");
+    }
 });
 
 app.set('view engine', 'ejs');
